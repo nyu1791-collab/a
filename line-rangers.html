@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LINE レンジャー 公式ファンサイト</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'M PLUS Rounded 1c', sans-serif;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #fff;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ヘッダー */
+    header {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(10px);
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 1000;
+      padding: 15px 0;
+      border-bottom: 2px solid #00c853;
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+    }
+
+    .logo {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #00e676;
+      text-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+    }
+
+    nav a {
+      color: #fff;
+      text-decoration: none;
+      margin-left: 25px;
+      font-weight: 700;
+      transition: color 0.3s;
+    }
+
+    nav a:hover {
+      color: #00e676;
+    }
+
+    /* ヒーローセクション */
+    .hero {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: radial-gradient(circle at center, #1b3a4b 0%, #0f1c2e 70%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(0, 230, 118, 0.15) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+      50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 900px;
+      padding: 0 20px;
+    }
+
+    .hero h1 {
+      font-size: 3.8rem;
+      font-weight: 800;
+      margin-bottom: 20px;
+      background: linear-gradient(90deg, #00e676, #69f0ae, #00e676);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 30px rgba(0, 230, 118, 0.3);
+    }
+
+    .hero p {
+      font-size: 1.4rem;
+      margin-bottom: 40px;
+      color: #b0bec5;
+    }
+
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #00c853, #00e676);
+      color: #000;
+      font-weight: 800;
+      font-size: 1.2rem;
+      padding: 16px 40px;
+      border-radius: 50px;
+      text-decoration: none;
+      box-shadow: 0 8px 25px rgba(0, 230, 118, 0.4);
+      transition: all 0.3s;
+    }
+
+    .btn:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 35px rgba(0, 230, 118, 0.6);
+    }
+
+    /* セクション共通 */
+    section {
+      padding: 100px 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h2 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 50px;
+      color: #00e676;
+      position: relative;
+    }
+
+    h2::after {
+      content: '';
+      display: block;
+      width: 80px;
+      height: 4px;
+      background: #00e676;
+      margin: 15px auto 0;
+      border-radius: 2px;
+    }
+
+    /* ゲーム紹介 */
+    .about {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 50px;
+      align-items: center;
+    }
+
+    .about-text p {
+      font-size: 1.15rem;
+      margin-bottom: 20px;
+      color: #cfd8dc;
+    }
+
+    .feature-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 30px;
+      margin-top: 60px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(0, 230, 118, 0.2);
+      border-radius: 20px;
+      padding: 30px;
+      text-align: center;
+      transition: all 0.3s;
+      backdrop-filter: blur(5px);
+    }
+
+    .card:hover {
+      transform: translateY(-10px);
+      border-color: #00e676;
+      box-shadow: 0 15px 40px rgba(0, 230, 118, 0.2);
+    }
+
+    .card h3 {
+      font-size: 1.4rem;
+      margin-bottom: 15px;
+      color: #69f0ae;
+    }
+
+    /* コラボ */
+    .collab {
+      background: linear-gradient(135deg, #1a237e, #0d47a1);
+      border-radius: 30px;
+      padding: 60px 40px;
+      text-align: center;
+      margin: 80px 20px;
+      border: 2px solid #448aff;
+      box-shadow: 0 0 40px rgba(68, 138, 255, 0.3);
+    }
+
+    .collab h2 {
+      color: #82b1ff;
+    }
+
+    .collab h2::after {
+      background: #82b1ff;
+    }
+
+    /* ダウンロード */
+    .download {
+      text-align: center;
+      padding: 80px 20px;
+    }
+
+    .store-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 40px;
+    }
+
+    .store-btn {
+      background: #000;
+      color: #fff;
+      padding: 15px 30px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #333;
+      transition: all 0.3s;
+    }
+
+    .store-btn:hover {
+      background: #111;
+      border-color: #00e676;
+    }
+
+    /* フッター */
+    footer {
+      background: #0a0a14;
+      text-align: center;
+      padding: 40px 20px;
+      color: #78909c;
+      font-size: 0.9rem;
+    }
+
+    footer a {
+      color: #00e676;
+      text-decoration: none;
+    }
+
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 2.4rem;
+      }
+      .about {
+        grid-template-columns: 1fr;
+      }
+      nav {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header>
+    <div class="header-inner">
+      <div class="logo">LINE レンジャー</div>
+      <nav>
+        <a href="#about">ゲーム紹介</a>
+        <a href="#features">特徴</a>
+        <a href="#collab">コラボ情報</a>
+        <a href="#download">ダウンロード</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ヒーロー -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>LINE レンジャー</h1>
+      <p>サリーを救え！<br>ブラウン・コニーたちがレンジャーに変身して大冒険！</p>
+      <a href="#download" class="btn">今すぐプレイする</a>
+    </div>
+  </section>
+
+  <!-- ゲーム紹介 -->
+  <section id="about">
+    <h2>ゲーム紹介</h2>
+    <div class="about">
+      <div class="about-text">
+        <p>宇宙人軍にさらわれたサリーを助けるため、ブラウン・コニー・ムーン・ジェームズたちがレンジャーに変身！</p>
+        <p>シンプルな操作で楽しめるタワーディフェンスRPG。400種類以上の可愛いレンジャーたちを集めて、最強のチームを作ろう！</p>
+        <p>PVPやギルド戦も充実。友達と一緒に宇宙を駆け巡れ！</p>
+      </div>
+      <div style="text-align:center; font-size:5rem;">
+        🐻🐰🌕🐵
+      </div>
+    </div>
+  </section>
+
+  <!-- 特徴 -->
+  <section id="features">
+    <h2>ゲームの特徴</h2>
+    <div class="feature-cards">
+      <div class="card">
+        <h3>⚔️ シンプルバトル</h3>
+        <p>タップするだけでレンジャーが出撃！敵の塔を破壊してサリーを救出しよう。</p>
+      </div>
+      <div class="card">
+        <h3>🌟 400体以上のレンジャー</h3>
+        <p>ブラウンやコニーをはじめ、進化やコラボでどんどん増える可愛いキャラクターたち。</p>
+      </div>
+      <div class="card">
+        <h3>🏆 PVP & ギルド</h3>
+        <p>世界中のプレイヤーと対戦！ギルドに入って協力プレイも楽しめる。</p>
+      </div>
+      <div class="card">
+        <h3>🔄 進化システム</h3>
+        <p>合成や進化素材でレンジャーを強化。究極進化・超進化で最強に！</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- コラボ -->
+  <div class="collab" id="collab">
+    <h2>開催中のコラボ</h2>
+    <p style="font-size:1.4rem; margin-bottom:20px;">『怪獣８号』コラボ開催中！</p>
+    <p style="color:#bbdefb; margin-bottom:30px;">
+      カフカ・キコル・レノ・保科・鳴海など人気キャラが<br>
+      限定レンジャーとして登場中！
+    </p>
+    <p style="font-size:0.95rem; color:#90caf9;">※期間限定イベントです。詳細はゲーム内でチェックしてね！</p>
+  </div>
+
+  <!-- ダウンロード -->
+  <section class="download" id="download">
+    <h2>今すぐダウンロード</h2>
+    <p style="color:#b0bec5; margin-bottom:10px;">無料で遊べる！（一部課金アイテムあり）</p>
+    <div class="store-buttons">
+      <a href="https://apps.apple.com/app/id767265270" class="store-btn" target="_blank">
+        🍎 App Store
+      </a>
+      <a href="https://play.google.com/store/apps/details?id=com.linecorp.LGRGS" class="store-btn" target="_blank">
+        🤖 Google Play
+      </a>
+      <a href="https://lin.ee/rXOFnXn" class="store-btn" target="_blank">
+        💚 LINEで開く
+      </a>
+    </div>
+  </section>
+
+  <!-- フッター -->
+  <footer>
+    <p>このサイトはファンによる非公式サイトです。</p>
+    <p style="margin-top:10px;">
+      公式X：<a href="https://x.com/LINE_Rangers_JP" target="_blank">@LINE_Rangers_JP</a>
+    </p>
+    <p style="margin-top:20px;">© LINE Corporation / LY Corporation</p>
+  </footer>
+
+</body>
+</html>
