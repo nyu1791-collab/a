@@ -1,0 +1,268 @@
+name: Build Zundamon World News Demo
+
+on:
+  push:
+    branches:
+      - media/zundamon-news-20260911
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  OUT_DIR: out
+
+jobs:
+  build-news-video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install media and transcription dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg jq fonts-noto-cjk
+          python -m pip install --disable-pip-version-check --quiet pillow faster-whisper
+
+      - name: Prepare scripts and source list
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT_DIR/audio" "$OUT_DIR/cards" "$OUT_DIR/scenes"
+          cat > "$OUT_DIR/narration.txt" <<'TXT'
+          9月11日の世界ニュースなのだ。
+          まずウクライナ。ロイターによると、ロシア軍のドローン攻撃がキーウのガソリンスタンドなどを直撃し、死者と負傷者が出たのだ。一方、ウクライナ側もロシア国内の石油施設などへのドローン攻撃を強めているのだ。
+          次は中東と原油なのだ。AP通信によると、アメリカはホルムズ海峡の航行回復で一定の進展を見せているものの、イランとの戦闘は続いているのだ。中東情勢で原油価格は高止まりしているのだ。
+          そして外交。ロイターによると、BRICS首脳会議を前に、インドのモディ首相とロシアのプーチン大統領が会談。エネルギー、防衛、ウクライナや西アジア情勢について協議したのだ。
+          最後はアメリカ。今日は9.11同時多発テロから25年。ニューヨーク、ペンタゴン、ペンシルベニアで追悼式典が行われたのだ。
+          以上、世界の主なニュースだったのだ。
+          TXT
+
+          cat > "$OUT_DIR/sources.txt" <<'TXT'
+          Reuters / Ukraine: https://www.reuters.com/world/russian-air-strikes-injure-two-cause-fire-9-storey-apartment-building-kyiv-2026-09-11/
+          AP / Hormuz: https://apnews.com/article/2b126da67b09de2f328846eb656abe0e
+          Reuters / Modi-Putin: https://www.reuters.com/business/aerospace-defense/modi-putin-hold-talks-new-delhi-trade-defence-2026-09-11/
+          AP / 9/11 25 years: https://apnews.com/article/32f752dfde114b888b57e48e065597ab
+          Voice credit: VOICEVOX:ずんだもん
+          TXT
+
+      - name: Synthesize actual Zundamon narration with free VOICEVOX route
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          synth() {
+            local idx="$1"
+            local text="$2"
+            local result="$OUT_DIR/audio/${idx}.json"
+            local ok=0
+
+            for attempt in 1 2 3 4; do
+              http=$(curl -sS -G -o "$result" -w '%{http_code}' \
+                'https://api.tts.quest/v3/voicevox/synthesis' \
+                --data-urlencode 'speaker=3' \
+                --data-urlencode "text=${text}" || true)
+
+              if [ "$http" = "200" ] && jq -e '.success == true' "$result" >/dev/null 2>&1; then
+                ok=1
+                break
+              fi
+
+              retry=$(jq -r '.retryAfter // 10' "$result" 2>/dev/null || echo 10)
+              if ! [[ "$retry" =~ ^[0-9]+$ ]]; then retry=10; fi
+              if [ "$retry" -gt 45 ]; then retry=45; fi
+              echo "VOICEVOX request $idx attempt $attempt returned HTTP $http; waiting ${retry}s"
+              sleep "$retry"
+            done
+
+            if [ "$ok" != "1" ]; then
+              echo "VOICEVOX synthesis request failed for segment $idx"
+              cat "$result" || true
+              exit 20
+            fi
+
+            status_url=$(jq -r '.audioStatusUrl' "$result")
+            mp3_url=$(jq -r '.mp3DownloadUrl' "$result")
+            speaker_name=$(jq -r '.speakerName' "$result")
+            echo "segment $idx speaker=$speaker_name"
+            case "$speaker_name" in
+              *ずんだもん*) ;;
+              *) echo "Unexpected speaker: $speaker_name"; exit 21;;
+            esac
+
+            ready=0
+            for poll in $(seq 1 36); do
+              status=$(curl -fsSL "$status_url" || true)
+              if echo "$status" | jq -e '.isAudioError == true' >/dev/null 2>&1; then
+                echo "VOICEVOX audio generation error for segment $idx: $status"
+                exit 22
+              fi
+              if echo "$status" | jq -e '.isAudioReady == true' >/dev/null 2>&1; then
+                ready=1
+                break
+              fi
+              sleep 5
+            done
+            if [ "$ready" != "1" ]; then
+              echo "Timed out waiting for Zundamon segment $idx"
+              exit 23
+            fi
+
+            curl -fsSL --retry 3 --retry-delay 2 "$mp3_url" -o "$OUT_DIR/audio/${idx}.mp3"
+            ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 "$OUT_DIR/audio/${idx}.mp3"
+            sleep 2
+          }
+
+          synth 1 '9月11日の世界ニュースなのだ。まずウクライナ。ロイターによると、ロシア軍のドローン攻撃がキーウのガソリンスタンドなどを直撃し、死者と負傷者が出たのだ。一方、ウクライナ側もロシア国内の石油施設などへのドローン攻撃を強めているのだ。'
+          synth 2 '次は中東と原油なのだ。AP通信によると、アメリカはホルムズ海峡の航行回復で一定の進展を見せているものの、イランとの戦闘は続いているのだ。中東情勢で原油価格は高止まりしているのだ。'
+          synth 3 'そして外交。ロイターによると、BRICS首脳会議を前に、インドのモディ首相とロシアのプーチン大統領が会談。エネルギー、防衛、ウクライナや西アジア情勢について協議したのだ。'
+          synth 4 '最後はアメリカ。今日は9.11同時多発テロから25年。ニューヨーク、ペンタゴン、ペンシルベニアで追悼式典が行われたのだ。以上、世界の主なニュースだったのだ。'
+
+      - name: Build news cards from current article imagery where available
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/cards.py <<'PY'
+          import html, os, re, ssl, urllib.request
+          from io import BytesIO
+          from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+          OUT=os.environ.get('OUT_DIR','out')
+          os.makedirs(f'{OUT}/cards', exist_ok=True)
+          sources=[
+            ('https://www.reuters.com/world/russian-air-strikes-injure-two-cause-fire-9-storey-apartment-building-kyiv-2026-09-11/','ウクライナ','キーウでドローン攻撃\n燃料施設への攻撃が激化','Reuters'),
+            ('https://apnews.com/article/2b126da67b09de2f328846eb656abe0e','中東と原油','ホルムズ海峡を巡る緊張\n原油価格は高止まり','AP'),
+            ('https://www.reuters.com/business/aerospace-defense/modi-putin-hold-talks-new-delhi-trade-defence-2026-09-11/','BRICS外交','モディ首相とプーチン大統領\n首脳会談','Reuters'),
+            ('https://apnews.com/article/32f752dfde114b888b57e48e065597ab','9.11から25年','米国各地で追悼式典','AP'),
+          ]
+          font_paths=['/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc','/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc']
+          def font(size,bold=False):
+            path=font_paths[0 if bold else 1]
+            return ImageFont.truetype(path,size)
+          def fetch_og(url):
+            try:
+              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+              with urllib.request.urlopen(req,timeout=20,context=ssl.create_default_context()) as r:
+                raw=r.read(2_000_000).decode('utf-8','ignore')
+              pats=[r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']']
+              for p in pats:
+                m=re.search(p,raw,re.I)
+                if m:
+                  return html.unescape(m.group(1))
+            except Exception as e:
+              print('og image fetch failed',url,e)
+            return None
+          def fetch_img(url):
+            try:
+              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+              with urllib.request.urlopen(req,timeout=25,context=ssl.create_default_context()) as r:
+                data=r.read(12_000_000)
+              return Image.open(BytesIO(data)).convert('RGB')
+            except Exception as e:
+              print('image download failed',url,e)
+              return None
+          def cover(im,size=(1080,1920)):
+            w,h=size
+            scale=max(w/im.width,h/im.height)
+            nw,nh=int(im.width*scale),int(im.height*scale)
+            im=im.resize((nw,nh),Image.Resampling.LANCZOS)
+            x=(nw-w)//2; y=(nh-h)//2
+            return im.crop((x,y,x+w,y+h))
+          for i,(url,title,summary,source) in enumerate(sources,1):
+            og=fetch_og(url)
+            im=fetch_img(og) if og else None
+            if im is None:
+              im=Image.new('RGB',(1080,1920),(18+12*i,24+10*i,42+8*i))
+            else:
+              im=cover(im).filter(ImageFilter.GaussianBlur(radius=1.2))
+            layer=Image.new('RGBA',(1080,1920),(0,0,0,0))
+            d=ImageDraw.Draw(layer)
+            d.rectangle((0,0,1080,1920),fill=(0,0,0,92))
+            d.rounded_rectangle((55,90,1025,340),radius=34,fill=(0,0,0,172))
+            d.text((90,125),title,font=font(82,True),fill='white')
+            y=850
+            for line in summary.split('\n'):
+              d.rounded_rectangle((60,y-24,1020,y+105),radius=26,fill=(0,0,0,176))
+              d.text((88,y),line,font=font(54,True),fill='white')
+              y+=150
+            d.rounded_rectangle((55,1660,1025,1845),radius=28,fill=(0,0,0,188))
+            d.text((82,1692),f'出典: {source}  •  2026/09/11',font=font(35),fill='white')
+            d.text((82,1755),'VOICEVOX:ずんだもん',font=font(38,True),fill='white')
+            out=Image.alpha_composite(im.convert('RGBA'),layer).convert('RGB')
+            out.save(f'{OUT}/cards/{i}.jpg',quality=91)
+          PY
+          python /tmp/cards.py
+
+      - name: Render four vertical scenes
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4; do
+            dur=$(ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 "$OUT_DIR/audio/${i}.mp3")
+            ffmpeg -y -loglevel error \
+              -loop 1 -framerate 30 -i "$OUT_DIR/cards/${i}.jpg" \
+              -i "$OUT_DIR/audio/${i}.mp3" \
+              -t "$dur" -shortest \
+              -vf "scale=1080:1920,format=yuv420p" \
+              -c:v libx264 -preset veryfast -crf 22 -r 30 \
+              -c:a aac -b:a 128k \
+              "$OUT_DIR/scenes/${i}.mp4"
+          done
+          printf "file '%s'\n" "$PWD/$OUT_DIR/scenes/1.mp4" "$PWD/$OUT_DIR/scenes/2.mp4" "$PWD/$OUT_DIR/scenes/3.mp4" "$PWD/$OUT_DIR/scenes/4.mp4" > "$OUT_DIR/scenes.txt"
+          ffmpeg -y -loglevel error -f concat -safe 0 -i "$OUT_DIR/scenes.txt" -c copy "$OUT_DIR/base.mp4"
+
+      - name: AI transcription with Whisper and SRT generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -y -loglevel error -i "$OUT_DIR/base.mp4" -vn -ac 1 -ar 16000 "$OUT_DIR/transcribe.wav"
+          cat > /tmp/transcribe.py <<'PY'
+          import os
+          from faster_whisper import WhisperModel
+          OUT=os.environ.get('OUT_DIR','out')
+          model=WhisperModel('base',device='cpu',compute_type='int8')
+          segments,info=model.transcribe(f'{OUT}/transcribe.wav',language='ja',beam_size=5,vad_filter=True)
+          def stamp(sec):
+            ms=max(0,int(round(sec*1000)))
+            h,ms=divmod(ms,3600000); m,ms=divmod(ms,60000); s,ms=divmod(ms,1000)
+            return f'{h:02d}:{m:02d}:{s:02d},{ms:03d}'
+          lines=[]; txt=[]
+          for n,seg in enumerate(segments,1):
+            t=seg.text.strip()
+            if not t: continue
+            lines.extend([str(n),f'{stamp(seg.start)} --> {stamp(seg.end)}',t,''])
+            txt.append(t)
+          open(f'{OUT}/transcript.srt','w',encoding='utf-8').write('\n'.join(lines))
+          open(f'{OUT}/transcript_ai.txt','w',encoding='utf-8').write('\n'.join(txt))
+          print('language',info.language,'prob',info.language_probability,'segments',len(txt))
+          PY
+          python /tmp/transcribe.py
+          test -s "$OUT_DIR/transcript.srt"
+
+      - name: Burn AI transcript captions into final video
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -y -loglevel error \
+            -i "$OUT_DIR/base.mp4" \
+            -vf "subtitles=$OUT_DIR/transcript.srt:force_style='FontName=Noto Sans CJK JP,FontSize=50,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,Alignment=2,MarginV=145'" \
+            -c:v libx264 -preset veryfast -crf 21 \
+            -c:a copy \
+            "$OUT_DIR/world_news_zundamon_2026-09-11.mp4"
+          ffprobe -v error -show_entries format=duration,size -of json "$OUT_DIR/world_news_zundamon_2026-09-11.mp4"
+
+      - name: Upload completed video and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: zundamon-world-news-2026-09-11
+          path: |
+            out/world_news_zundamon_2026-09-11.mp4
+            out/transcript.srt
+            out/transcript_ai.txt
+            out/narration.txt
+            out/sources.txt
+            out/audio/*.json
+          if-no-files-found: error
+          retention-days: 3
